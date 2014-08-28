@@ -1,17 +1,23 @@
+import logging
+
+from _thrift.zipkinCore.constants import SERVER_RECV, SERVER_SEND
 from zipkin_data import ZipkinData, ZipkinId
 from data_store import default as default_data_store
 from id_generator import default as default_id_generator
+from api import api as default_api
+import defaults as settings
 
 
-class StandardZipkinHeaders(object):
+zipkin_logger = logging.getLogger(settings.ZIPKIN_LOGGER_NAME)
+
+
+class ZipkinDjangoRequestProcessor(object):
     trace_id_hdr_name = "HTTP_X_B3_TRACEID"
     span_id_hdr_name = "HTTP_X_B3_SPANID"
     parent_span_id_hdr_name = "HTTP_X_B3_PARENTSPANID"
     sampled_hdr_name = "HTTP_X_B3_SAMPLED"
     flags_hdr_name = "HTTP_X_B3_FLAGS"
 
-
-class ZipkinDjangoRequestProcessor(StandardZipkinHeaders, object):
     def get_zipkin_data(self, request):
         return ZipkinData(
             trace_id=ZipkinId.from_hex(request.META.get(self.trace_id_hdr_name, None)),
@@ -22,17 +28,13 @@ class ZipkinDjangoRequestProcessor(StandardZipkinHeaders, object):
         )
 
 
-class ZipkinDjangoResponseProcessor(StandardZipkinHeaders, object):
-    def write_zipkin_data(self, response, data):
-        pass
-
-
 class ZipkinMiddleware(object):
-    def __init__(self, store=None, request_processor=None, response_processor=None, id_generator=None):
+    def __init__(self, store=None, request_processor=None, response_processor=None, id_generator=None, api=None):
         self.store = store or default_data_store
         self.request_processor = request_processor or ZipkinDjangoRequestProcessor()
         self.response_processor = response_processor
         self.id_generator = id_generator or default_id_generator
+        self.api = api or default_api
 
     def process_request(self, request):
         data = self.request_processor.get_zipkin_data(request)
@@ -41,7 +43,16 @@ class ZipkinMiddleware(object):
         if data.trace_id is None:
             data.trace_id = self.id_generator.generate_trace_id()
         self.store.set(data)
+        self.api.record_event(SERVER_RECV)
 
     def process_response(self, response):
         self.response_processor.write_zipkin_data(response, self.store.get())
+        self.api.record_event(SERVER_SEND)
+        zipkin_logger.info(self.api.build_log_message())
+        self.store.clear()
 
+    def _build_trace(self):
+        pass
+
+    def _build_annotation(self, value):
+        pass
