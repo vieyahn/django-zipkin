@@ -20,12 +20,12 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.middleware = ZipkinMiddleware(self.store, self.request_processor, self.generator)
 
     def test_intercepts_incoming_trace_id(self):
-        self.middleware.process_request(None)
+        self.middleware.process_request(Mock())
         self.store.set.assert_called_once_with(self.request_processor.get_zipkin_data.return_value)
 
     def test_generates_ids_if_no_incoming(self):
         self.request_processor.get_zipkin_data.return_value = ZipkinData()
-        self.middleware.process_request(None)
+        self.middleware.process_request(Mock())
         self.generator.generate_trace_id.assert_called_once_with()
         self.generator.generate_span_id.assert_called_once_with()
         data = self.store.set.call_args[0][0]
