@@ -1,14 +1,11 @@
 import logging
 
-from _thrift.zipkinCore.constants import SERVER_RECV, SERVER_SEND
+from django_zipkin._thrift.zipkinCore.constants import SERVER_RECV, SERVER_SEND
 from zipkin_data import ZipkinData, ZipkinId
 from data_store import default as default_data_store
 from id_generator import default as default_id_generator
 from api import api as default_api
 import defaults as settings
-
-
-zipkin_logger = logging.getLogger(settings.ZIPKIN_LOGGER_NAME)
 
 
 class ZipkinDjangoRequestProcessor(object):
@@ -29,14 +26,16 @@ class ZipkinDjangoRequestProcessor(object):
 
 
 class ZipkinMiddleware(object):
-    def __init__(self, store=None, request_processor=None, response_processor=None, id_generator=None, api=None):
+    def __init__(self, store=None, request_processor=None, id_generator=None, api=None):
+        self._logger = None  # Lazy-load the logger to make sure it gets the logging config
         self.store = store or default_data_store
         self.request_processor = request_processor or ZipkinDjangoRequestProcessor()
-        self.response_processor = response_processor
         self.id_generator = id_generator or default_id_generator
         self.api = api or default_api
+        self.logger = logging.getLogger(settings.ZIPKIN_LOGGER_NAME)
 
     def process_request(self, request):
+        self.store.clear()
         data = self.request_processor.get_zipkin_data(request)
         if data.span_id is None:
             data.span_id = self.id_generator.generate_span_id()
@@ -45,11 +44,10 @@ class ZipkinMiddleware(object):
         self.store.set(data)
         self.api.record_event(SERVER_RECV)
 
-    def process_response(self, response):
-        self.response_processor.write_zipkin_data(response, self.store.get())
+    def process_response(self, request, response):
         self.api.record_event(SERVER_SEND)
-        zipkin_logger.info(self.api.build_log_message())
-        self.store.clear()
+        self.logger.info(self.api.build_log_message())
+        return response
 
     def _build_trace(self):
         pass

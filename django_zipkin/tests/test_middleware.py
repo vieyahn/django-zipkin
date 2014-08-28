@@ -17,7 +17,7 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.store = Mock(spec=BaseDataStore)
         self.request_processor = Mock(spec=ZipkinDjangoRequestProcessor)
         self.generator = Mock(spec=BaseIdGenerator)
-        self.middleware = ZipkinMiddleware(self.store, self.request_processor, None, self.generator)
+        self.middleware = ZipkinMiddleware(self.store, self.request_processor, self.generator)
 
     def test_intercepts_incoming_trace_id(self):
         self.middleware.process_request(None)
