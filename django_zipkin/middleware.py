@@ -27,7 +27,6 @@ class ZipkinDjangoRequestProcessor(object):
 
 class ZipkinMiddleware(object):
     def __init__(self, store=None, request_processor=None, id_generator=None, api=None):
-        self._logger = None  # Lazy-load the logger to make sure it gets the logging config
         self.store = store or default_data_store
         self.request_processor = request_processor or ZipkinDjangoRequestProcessor()
         self.id_generator = id_generator or default_id_generator
