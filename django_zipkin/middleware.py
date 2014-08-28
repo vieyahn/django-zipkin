@@ -41,11 +41,13 @@ class ZipkinMiddleware(object):
         if data.trace_id is None:
             data.trace_id = self.id_generator.generate_trace_id()
         self.store.set(data)
+        self.api.set_rpc_name(request.method)
         self.api.record_event(SERVER_RECV)
 
     def process_response(self, request, response):
         self.api.record_event(SERVER_SEND)
-        self.logger.info(self.api.build_log_message())
+        if self.store.get().sampled:
+            self.logger.info(self.api.build_log_message())
         return response
 
     def _build_trace(self):
