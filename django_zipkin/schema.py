@@ -1,4 +1,4 @@
-from default_settings_values import *
+from constants import *
 try:
     from configglue.schema import Section, StringOption
     has_configglue = True
