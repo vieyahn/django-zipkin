@@ -6,7 +6,7 @@ from helpers import DjangoZipkinTestHelpers
 from django_zipkin.zipkin_data import ZipkinData, ZipkinId
 from django_zipkin.data_store import BaseDataStore
 from django_zipkin.id_generator import BaseIdGenerator
-from django_zipkin.middleware import ZipkinMiddleware, ZipkinDjangoRequestProcessor
+from django_zipkin.middleware import ZipkinMiddleware, ZipkinDjangoRequestParser
 
 
 __all__ = ['ZipkinMiddlewareTestCase', 'ZipkinDjangoRequestProcessorTestCase']
@@ -15,7 +15,7 @@ __all__ = ['ZipkinMiddlewareTestCase', 'ZipkinDjangoRequestProcessorTestCase']
 class ZipkinMiddlewareTestCase(TestCase):
     def setUp(self):
         self.store = Mock(spec=BaseDataStore)
-        self.request_processor = Mock(spec=ZipkinDjangoRequestProcessor)
+        self.request_processor = Mock(spec=ZipkinDjangoRequestParser)
         self.generator = Mock(spec=BaseIdGenerator)
         self.middleware = ZipkinMiddleware(self.store, self.request_processor, self.generator)
 
@@ -39,30 +39,36 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.assertEqual(self.middleware.store.get().trace_id.get_binary(), 42)
         self.assertIsInstance(self.middleware.store.get().span_id, ZipkinId)
 
+    def test_incoming_span_id_to_parent_span_id(self):
+        self.middleware.request_parser = ZipkinDjangoRequestParser()
+        request_factory = RequestFactory()
+        self.middleware.process_request(request_factory.get('/', HTTP_X_B3_SPANID='000000000000002a'))
+        self.assertEqual(self.store.set.call_args[0][0].parent_span_id.get_binary(), 42)
+
 
 class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
     def setUp(self):
         self.request_factory = RequestFactory()
-        self.processor = ZipkinDjangoRequestProcessor()
+        self.processor = ZipkinDjangoRequestParser()
 
     def test_header_keys(self):
         transform = lambda s: 'HTTP_' + s.upper().replace('-', '_')
-        self.assertEqual(ZipkinDjangoRequestProcessor.trace_id_hdr_name, transform("X-B3-TraceId"))
-        self.assertEqual(ZipkinDjangoRequestProcessor.span_id_hdr_name, transform("X-B3-SpanId"))
-        self.assertEqual(ZipkinDjangoRequestProcessor.parent_span_id_hdr_name, transform("X-B3-ParentSpanId"))
-        self.assertEqual(ZipkinDjangoRequestProcessor.sampled_hdr_name, transform("X-B3-Sampled"))
-        self.assertEqual(ZipkinDjangoRequestProcessor.flags_hdr_name, transform("X-B3-Flags"))
+        self.assertEqual(ZipkinDjangoRequestParser.trace_id_hdr_name, transform("X-B3-TraceId"))
+        self.assertEqual(ZipkinDjangoRequestParser.span_id_hdr_name, transform("X-B3-SpanId"))
+        self.assertEqual(ZipkinDjangoRequestParser.parent_span_id_hdr_name, transform("X-B3-ParentSpanId"))
+        self.assertEqual(ZipkinDjangoRequestParser.sampled_hdr_name, transform("X-B3-Sampled"))
+        self.assertEqual(ZipkinDjangoRequestParser.flags_hdr_name, transform("X-B3-Flags"))
 
     def test_all_fields_filled(self):
         trace_id = ZipkinId.from_binary(42)
         span_id = ZipkinId.from_binary(-42)
         parent_span_id = ZipkinId.from_binary(53)
         request = self.request_factory.get('/', **{
-            ZipkinDjangoRequestProcessor.trace_id_hdr_name: trace_id.get_hex(),
-            ZipkinDjangoRequestProcessor.span_id_hdr_name:  span_id.get_hex(),
-            ZipkinDjangoRequestProcessor.parent_span_id_hdr_name:  parent_span_id.get_hex(),
-            ZipkinDjangoRequestProcessor.sampled_hdr_name: sentinel.sampled,
-            ZipkinDjangoRequestProcessor.flags_hdr_name: sentinel.flags
+            ZipkinDjangoRequestParser.trace_id_hdr_name: trace_id.get_hex(),
+            ZipkinDjangoRequestParser.span_id_hdr_name:  span_id.get_hex(),
+            ZipkinDjangoRequestParser.parent_span_id_hdr_name:  parent_span_id.get_hex(),
+            ZipkinDjangoRequestParser.sampled_hdr_name: sentinel.sampled,
+            ZipkinDjangoRequestParser.flags_hdr_name: sentinel.flags
         })
         self.assertZipkinDataEquals(
             self.processor.get_zipkin_data(request),

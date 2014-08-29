@@ -8,7 +8,7 @@ from api import api as default_api
 import defaults as settings
 
 
-class ZipkinDjangoRequestProcessor(object):
+class ZipkinDjangoRequestParser(object):
     trace_id_hdr_name = "HTTP_X_B3_TRACEID"
     span_id_hdr_name = "HTTP_X_B3_SPANID"
     parent_span_id_hdr_name = "HTTP_X_B3_PARENTSPANID"
@@ -26,20 +26,20 @@ class ZipkinDjangoRequestProcessor(object):
 
 
 class ZipkinMiddleware(object):
-    def __init__(self, store=None, request_processor=None, id_generator=None, api=None):
+    def __init__(self, store=None, request_parser=None, id_generator=None, api=None):
         self.store = store or default_data_store
-        self.request_processor = request_processor or ZipkinDjangoRequestProcessor()
+        self.request_parser = request_parser or ZipkinDjangoRequestParser()
         self.id_generator = id_generator or default_id_generator
         self.api = api or default_api
         self.logger = logging.getLogger(settings.ZIPKIN_LOGGER_NAME)
 
     def process_request(self, request):
         self.store.clear()
-        data = self.request_processor.get_zipkin_data(request)
-        if data.span_id is None:
-            data.span_id = self.id_generator.generate_span_id()
+        data = self.request_parser.get_zipkin_data(request)
         if data.trace_id is None:
             data.trace_id = self.id_generator.generate_trace_id()
+        data.parent_span_id = data.span_id
+        data.span_id = self.id_generator.generate_span_id()
         self.store.set(data)
         self.api.set_rpc_name(request.method)
         self.api.record_event(SERVER_RECV)
