@@ -5,15 +5,20 @@ from zipkin_data import ZipkinData, ZipkinId
 from data_store import default as default_data_store
 from id_generator import default as default_id_generator
 from api import api as default_api
+import constants
 import defaults as settings
 
 
+def _hdr_to_meta_key(h):
+    return 'HTTP_' + h.upper().replace('-', '_')
+
+
 class ZipkinDjangoRequestParser(object):
-    trace_id_hdr_name = "HTTP_X_B3_TRACEID"
-    span_id_hdr_name = "HTTP_X_B3_SPANID"
-    parent_span_id_hdr_name = "HTTP_X_B3_PARENTSPANID"
-    sampled_hdr_name = "HTTP_X_B3_SAMPLED"
-    flags_hdr_name = "HTTP_X_B3_FLAGS"
+    trace_id_hdr_name = _hdr_to_meta_key(constants.TRACE_ID_HDR_NAME)
+    span_id_hdr_name = _hdr_to_meta_key(constants.SPAN_ID_HDR_NAME)
+    parent_span_id_hdr_name = _hdr_to_meta_key(constants.PARENT_SPAN_ID_HDR_NAME)
+    sampled_hdr_name = _hdr_to_meta_key(constants.SAMPLED_HDR_NAME)
+    flags_hdr_name = _hdr_to_meta_key(constants.FLAGS_HDR_NAME)
 
     def get_zipkin_data(self, request):
         return ZipkinData(

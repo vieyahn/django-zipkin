@@ -1,5 +1,5 @@
 from django.conf import settings
-from default_settings_values import *
+from constants import *
 
 ZIPKIN_SERVICE_NAME = getattr(settings, 'ZIPKIN_SERVICE_NAME', DEFAULT_ZIPKIN_SERVICE_NAME)
 ZIPKIN_LOGGER_NAME = getattr(settings, 'ZIPKIN_LOGGER_NAME', DEFAULT_ZIPKIN_LOGGER_NAME)
