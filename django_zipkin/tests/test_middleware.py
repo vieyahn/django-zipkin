@@ -67,7 +67,7 @@ class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
             ZipkinDjangoRequestParser.trace_id_hdr_name: trace_id.get_hex(),
             ZipkinDjangoRequestParser.span_id_hdr_name:  span_id.get_hex(),
             ZipkinDjangoRequestParser.parent_span_id_hdr_name:  parent_span_id.get_hex(),
-            ZipkinDjangoRequestParser.sampled_hdr_name: sentinel.sampled,
+            ZipkinDjangoRequestParser.sampled_hdr_name: 'true',
             ZipkinDjangoRequestParser.flags_hdr_name: sentinel.flags
         })
         self.assertZipkinDataEquals(
@@ -76,7 +76,7 @@ class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
                 trace_id=trace_id,
                 span_id=span_id,
                 parent_span_id=parent_span_id,
-                sampled=sentinel.sampled,
+                sampled=True,
                 flags=sentinel.flags
             )
         )
