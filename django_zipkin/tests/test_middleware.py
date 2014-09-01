@@ -64,8 +64,7 @@ class ZipkinMiddlewareTestCase(TestCase):
         for sampled in [True, False]:
             for flags in [True, False]:
                 self.middleware.logger = Mock(spec=logging.Logger)
-                self.middleware.store.get.return_value.sampled = sampled
-                self.middleware.store.get.return_value.flags = flags
+                self.middleware.store.get.return_value = ZipkinData(sampled=sampled, flags=flags)
                 self.middleware.process_response(Mock(), HttpResponse())
                 if sampled or flags:
                     self.middleware.logger.info.assert_called_once_with(self.api.build_log_message.return_value)

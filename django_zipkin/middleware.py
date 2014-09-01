@@ -54,7 +54,7 @@ class ZipkinMiddleware(object):
         self.api.record_event(SERVER_SEND)
         self.api.record_key_value(constants.ANNOTATION_HTTP_STATUSCODE, response.status_code)
         data = self.store.get()
-        if data.sampled or data.flags:
+        if data.is_tracing():
             self.logger.info(self.api.build_log_message())
         return response
 
