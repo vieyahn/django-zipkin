@@ -13,10 +13,6 @@ def _hdr_to_meta_key(h):
     return 'HTTP_' + h.upper().replace('-', '_')
 
 
-def _str_to_bool(s):
-    return s.lower() in ['true', 't', '1', 'yes']
-
-
 class ZipkinDjangoRequestParser(object):
     trace_id_hdr_name = _hdr_to_meta_key(constants.TRACE_ID_HDR_NAME)
     span_id_hdr_name = _hdr_to_meta_key(constants.SPAN_ID_HDR_NAME)
@@ -29,8 +25,8 @@ class ZipkinDjangoRequestParser(object):
             trace_id=ZipkinId.from_hex(request.META.get(self.trace_id_hdr_name, None)),
             span_id=ZipkinId.from_hex(request.META.get(self.span_id_hdr_name, None)),
             parent_span_id=ZipkinId.from_hex(request.META.get(self.parent_span_id_hdr_name, None)),
-            sampled=_str_to_bool(request.META.get(self.sampled_hdr_name, 'false')),
-            flags=request.META.get(self.flags_hdr_name, None)
+            sampled=request.META.get(self.sampled_hdr_name, 'false') == 'true',
+            flags=request.META.get(self.flags_hdr_name, '0') == '1'
         )
 
 
@@ -57,7 +53,8 @@ class ZipkinMiddleware(object):
     def process_response(self, request, response):
         self.api.record_event(SERVER_SEND)
         self.api.record_key_value(constants.ANNOTATION_HTTP_STATUSCODE, response.status_code)
-        if self.store.get().sampled:
+        data = self.store.get()
+        if data.sampled or data.flags:
             self.logger.info(self.api.build_log_message())
         return response
 

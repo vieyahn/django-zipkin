@@ -1,7 +1,8 @@
 from unittest2.case import TestCase
-from mock import Mock, sentinel, call
+from mock import Mock, call
 from django.test import RequestFactory
 from django.http import HttpResponse
+import logging
 
 from helpers import DjangoZipkinTestHelpers
 
@@ -45,7 +46,7 @@ class ZipkinMiddlewareTestCase(TestCase):
 
     def test_annotates_responsecode(self):
         self.store.get.return_value = ZipkinData()
-        self.middleware.process_response(self.request_factory.get('/', HTTP_X_B3_SAMPED='t'), HttpResponse(status=42))
+        self.middleware.process_response(self.request_factory.get('/', HTTP_X_B3_SAMPLED='true'), HttpResponse(status=42))
         self.api.record_key_value.assert_has_calls(call('http.statuscode', 42))
 
     def test_with_defaults(self):
@@ -58,6 +59,18 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.middleware.request_parser = ZipkinDjangoRequestParser()
         self.middleware.process_request(self.request_factory.get('/', HTTP_X_B3_SPANID='000000000000002a'))
         self.assertEqual(self.store.set.call_args[0][0].parent_span_id.get_binary(), 42)
+
+    def test_logs_iff_sampled_or_flagged(self):
+        for sampled in [True, False]:
+            for flags in [True, False]:
+                self.middleware.logger = Mock(spec=logging.Logger)
+                self.middleware.store.get.return_value.sampled = sampled
+                self.middleware.store.get.return_value.flags = flags
+                self.middleware.process_response(Mock(), HttpResponse())
+                if sampled or flags:
+                    self.middleware.logger.info.assert_called_once_with(self.api.build_log_message.return_value)
+                else:
+                    self.assertListEqual(self.middleware.logger.info.mock_calls, [])
 
 
 class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
@@ -82,7 +95,7 @@ class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
             ZipkinDjangoRequestParser.span_id_hdr_name:  span_id.get_hex(),
             ZipkinDjangoRequestParser.parent_span_id_hdr_name:  parent_span_id.get_hex(),
             ZipkinDjangoRequestParser.sampled_hdr_name: 'true',
-            ZipkinDjangoRequestParser.flags_hdr_name: sentinel.flags
+            ZipkinDjangoRequestParser.flags_hdr_name: '0'
         })
         self.assertZipkinDataEquals(
             self.processor.get_zipkin_data(request),
@@ -91,7 +104,7 @@ class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
                 span_id=span_id,
                 parent_span_id=parent_span_id,
                 sampled=True,
-                flags=sentinel.flags
+                flags=False
             )
         )
 
