@@ -8,3 +8,6 @@ SPAN_ID_HDR_NAME = "X-B3-SpanId"
 PARENT_SPAN_ID_HDR_NAME = "X-B3-ParentSpanId"
 SAMPLED_HDR_NAME = "X-B3-Sampled"
 FLAGS_HDR_NAME = "X-B3-Flags"
+
+ANNOTATION_HTTP_URI = 'http.uri'
+ANNOTATION_HTTP_STATUSCODE = 'http.statuscode'

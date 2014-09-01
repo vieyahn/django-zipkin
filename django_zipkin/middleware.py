@@ -52,9 +52,11 @@ class ZipkinMiddleware(object):
         self.store.set(data)
         self.api.set_rpc_name(request.method)
         self.api.record_event(SERVER_RECV)
+        self.api.record_key_value(constants.ANNOTATION_HTTP_URI, request.get_full_path())
 
     def process_response(self, request, response):
         self.api.record_event(SERVER_SEND)
+        self.api.record_key_value(constants.ANNOTATION_HTTP_STATUSCODE, response.status_code)
         if self.store.get().sampled:
             self.logger.info(self.api.build_log_message())
         return response

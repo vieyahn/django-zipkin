@@ -1,8 +1,11 @@
 from unittest2.case import TestCase
-from mock import Mock, sentinel
+from mock import Mock, sentinel, call
 from django.test import RequestFactory
+from django.http import HttpResponse
 
 from helpers import DjangoZipkinTestHelpers
+
+from django_zipkin.api import ZipkinApi
 from django_zipkin.zipkin_data import ZipkinData, ZipkinId
 from django_zipkin.data_store import BaseDataStore
 from django_zipkin.id_generator import BaseIdGenerator
@@ -17,7 +20,9 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.store = Mock(spec=BaseDataStore)
         self.request_processor = Mock(spec=ZipkinDjangoRequestParser)
         self.generator = Mock(spec=BaseIdGenerator)
-        self.middleware = ZipkinMiddleware(self.store, self.request_processor, self.generator)
+        self.api = Mock(spec=ZipkinApi)
+        self.middleware = ZipkinMiddleware(self.store, self.request_processor, self.generator, self.api)
+        self.request_factory = RequestFactory()
 
     def test_intercepts_incoming_trace_id(self):
         self.middleware.process_request(Mock())
@@ -32,8 +37,18 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.assertEqual(data.span_id, self.generator.generate_span_id.return_value)
         self.assertEqual(data.trace_id, self.generator.generate_trace_id.return_value)
 
+    def test_annotates_uri(self):
+        uri = '/foo/bar?x=y'
+        request = self.request_factory.get(uri, HTTP_X_B3_SAMPLED='true')
+        self.middleware.process_request(request)
+        self.api.record_key_value.assert_has_calls(call('http.uri', uri))
+
+    def test_annotates_responsecode(self):
+        self.store.get.return_value = ZipkinData()
+        self.middleware.process_response(self.request_factory.get('/', HTTP_X_B3_SAMPED='t'), HttpResponse(status=42))
+        self.api.record_key_value.assert_has_calls(call('http.statuscode', 42))
+
     def test_with_defaults(self):
-        self.request_factory = RequestFactory()
         self.middleware = ZipkinMiddleware()
         self.middleware.process_request(self.request_factory.get('/', HTTP_X_B3_TRACEID='000000000000002a'))
         self.assertEqual(self.middleware.store.get().trace_id.get_binary(), 42)
@@ -41,8 +56,7 @@ class ZipkinMiddlewareTestCase(TestCase):
 
     def test_incoming_span_id_to_parent_span_id(self):
         self.middleware.request_parser = ZipkinDjangoRequestParser()
-        request_factory = RequestFactory()
-        self.middleware.process_request(request_factory.get('/', HTTP_X_B3_SPANID='000000000000002a'))
+        self.middleware.process_request(self.request_factory.get('/', HTTP_X_B3_SPANID='000000000000002a'))
         self.assertEqual(self.store.set.call_args[0][0].parent_span_id.get_binary(), 42)
 
 
