@@ -11,6 +11,7 @@ from django_zipkin.zipkin_data import ZipkinData, ZipkinId
 from django_zipkin.data_store import BaseDataStore
 from django_zipkin.id_generator import BaseIdGenerator
 from django_zipkin.middleware import ZipkinMiddleware, ZipkinDjangoRequestParser
+from django_zipkin import constants
 
 
 __all__ = ['ZipkinMiddlewareTestCase', 'ZipkinDjangoRequestProcessorTestCase']
@@ -71,6 +72,14 @@ class ZipkinMiddlewareTestCase(TestCase):
                 else:
                     self.assertListEqual(self.middleware.logger.info.mock_calls, [])
 
+    def test_process_response_without_process_request(self):
+        # This happens when a middleware before us returns a response in process_request
+        self.store.get.return_value = ZipkinData()
+        request = Mock()
+        self.middleware.process_request = Mock()
+        self.middleware.process_response(request, HttpResponse())
+        self.middleware.process_request.assert_called_once_with(request)
+        self.middleware.api.record_event(constants.ANNOTATION_NO_DATA_IN_LOCAL_STORE)
 
 class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
     def setUp(self):

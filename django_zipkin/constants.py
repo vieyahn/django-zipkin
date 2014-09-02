@@ -11,3 +11,7 @@ FLAGS_HDR_NAME = "X-B3-Flags"
 
 ANNOTATION_HTTP_URI = 'http.uri'
 ANNOTATION_HTTP_STATUSCODE = 'http.statuscode'
+
+ANNOTATION_NO_DATA_IN_LOCAL_STORE = 'No ZipkinData in thread local store. This can happen if process_request ' + \
+                                    'didn\'t run due to a previous middleware returning a response. Timing ' + \
+                                    'information is invalid.'
