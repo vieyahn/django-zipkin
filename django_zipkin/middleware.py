@@ -59,6 +59,7 @@ class ZipkinMiddleware(object):
             if data.trace_id is None:
                 self.process_request(request)
                 self.api.record_event(constants.ANNOTATION_NO_DATA_IN_LOCAL_STORE)
+                data = self.store.get()
             self.api.record_event(SERVER_SEND)
             self.api.record_key_value(constants.ANNOTATION_HTTP_STATUSCODE, response.status_code)
             if data.is_tracing():
