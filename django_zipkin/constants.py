@@ -11,6 +11,9 @@ FLAGS_HDR_NAME = "X-B3-Flags"
 
 ANNOTATION_HTTP_URI = 'http.uri'
 ANNOTATION_HTTP_STATUSCODE = 'http.statuscode'
+ANNOTATION_DJANGO_VIEW_NAME = 'django.view.name'
+ANNOTATION_DJANGO_VIEW_ARGS = 'django.view.args'
+ANNOTATION_DJANGO_VIEW_KWARGS = 'django.view.kwargs'
 
 ANNOTATION_NO_DATA_IN_LOCAL_STORE = 'No ZipkinData in thread local store. This can happen if process_request ' + \
                                     'didn\'t run due to a previous middleware returning a response. Timing ' + \

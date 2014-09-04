@@ -1,8 +1,11 @@
 from unittest2.case import TestCase
 from mock import Mock, call
+
+import logging
+import types
+
 from django.test import RequestFactory
 from django.http import HttpResponse
-import logging
 
 from helpers import DjangoZipkinTestHelpers
 
@@ -50,6 +53,24 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.middleware.process_response(self.request_factory.get('/', HTTP_X_B3_SAMPLED='true'), HttpResponse(status=42))
         self.api.record_key_value.assert_has_calls(call('http.statuscode', 42))
 
+    def test_annotates_view_name_and_arguments_of_view_function(self):
+        request, view, args, kwargs = Mock(), Mock(spec=types.FunctionType), Mock(), Mock()
+        self.middleware.process_view(request, view, args, kwargs)
+        self.api.record_key_value.assert_has_calls([
+            call('django.view.name', view.func_name),
+            call('django.view.args', str(args)),
+            call('django.view.kwargs', str(kwargs))
+        ])
+
+    def test_annotates_view_name_and_arguments_of_view_method(self):
+        request, view, args, kwargs = Mock(), Mock(spec=types.MethodType, im_class=Mock(__name__=Mock())), Mock(), Mock()
+        self.middleware.process_view(request, view, args, kwargs)
+        self.api.record_key_value.assert_has_calls([
+            call('django.view.name', '%s.%s' % (view.im_class.__name__, view.im_func.func_name)),
+            call('django.view.args', str(args)),
+            call('django.view.kwargs', str(kwargs))
+        ])
+
     def test_with_defaults(self):
         self.middleware = ZipkinMiddleware()
         self.middleware.process_request(self.request_factory.get('/', HTTP_X_B3_TRACEID='000000000000002a'))
@@ -80,6 +101,7 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.middleware.process_response(request, HttpResponse())
         self.middleware.process_request.assert_called_once_with(request)
         self.middleware.api.record_event(constants.ANNOTATION_NO_DATA_IN_LOCAL_STORE)
+
 
 class ZipkinDjangoRequestProcessorTestCase(DjangoZipkinTestHelpers, TestCase):
     def setUp(self):

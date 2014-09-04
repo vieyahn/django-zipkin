@@ -1,4 +1,5 @@
 import logging
+import types
 
 from django_zipkin._thrift.zipkinCore.constants import SERVER_RECV, SERVER_SEND
 from zipkin_data import ZipkinData, ZipkinId
@@ -52,6 +53,19 @@ class ZipkinMiddleware(object):
             self.api.record_key_value(constants.ANNOTATION_HTTP_URI, request.get_full_path())
         except Exception:
             logging.root.exception('ZipkinMiddleware.process_request failed')
+
+    def process_view(self, request, view_func, view_args, view_kwargs):
+        try:
+            if self.store.get().trace_id is None:
+                self.process_request(request)
+            if isinstance(view_func, types.FunctionType):
+                self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_NAME, view_func.func_name)
+            elif isinstance(view_func, types.MethodType):
+                self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_NAME, '%s.%s' % (view_func.im_class.__name__, view_func.im_func.func_name))
+            self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_ARGS, str(view_args))
+            self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_KWARGS, str(view_kwargs))
+        except Exception:
+            logging.root.exception('ZipkinMiddleware.process_view failed')
 
     def process_response(self, request, response):
         try:
