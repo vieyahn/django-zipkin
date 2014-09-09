@@ -1,6 +1,6 @@
 import logging
-import types
-
+import django
+import json
 from django_zipkin._thrift.zipkinCore.constants import SERVER_RECV, SERVER_SEND
 from zipkin_data import ZipkinData, ZipkinId
 from data_store import default as default_data_store
@@ -8,6 +8,20 @@ from id_generator import default as default_id_generator
 from api import api as default_api
 import constants
 import defaults as settings
+
+
+if django.VERSION[0] == 1 and django.VERSION[1] < 5:
+    from django.core.urlresolvers import resolve
+
+    # TODO: caching the resolutions may be a good idea
+    def resolve_request(request):
+        return resolve(request.path_info)
+elif django.VERSION[0] == 1 and django.VERSION[1] >= 5:
+    def resolve_request(request):
+        return request.resolver_match
+else:
+    def resolve_request(request):
+        return None
 
 
 def _hdr_to_meta_key(h):
@@ -58,12 +72,26 @@ class ZipkinMiddleware(object):
         try:
             if self.store.get().trace_id is None:
                 self.process_request(request)
-            if isinstance(view_func, types.FunctionType):
-                self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_NAME, view_func.func_name)
-            elif isinstance(view_func, types.MethodType):
-                self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_NAME, '%s.%s' % (view_func.im_class.__name__, view_func.im_func.func_name))
-            self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_ARGS, str(view_args))
-            self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_KWARGS, str(view_kwargs))
+            # Get the URL name if we can
+            try:
+                self.api.record_key_value(constants.ANNOTATION_DJANGO_URL_NAME, resolve_request(request).url_name)
+            except:
+                pass
+            # Simple view function
+            if hasattr(view_func, 'func_name'):
+                self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_FUNC_NAME, view_func.func_name)
+            # View method on a class-based view
+            if hasattr(view_func, 'im_class'):
+                self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_CLASS, view_func.im_class.__name__)
+            if hasattr(view_func, 'im_func'):
+                self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_FUNC_NAME, view_func.im_func.func_name)
+            # Wrappers not using functools.wraps, and especially wrappers on view methods on class-based views
+            # mess up the above logic. Next up is special casing for django-tastypie, to make the span a bit more useful
+            if 'resource_name' in view_kwargs:
+                self.api.record_key_value(constants.ANNOTATION_DJANGO_TASTYPIE_RESOURCE_NAME, view_kwargs['resource_name'])
+                del view_kwargs['resource_name']
+            self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_ARGS, json.dumps(view_args))
+            self.api.record_key_value(constants.ANNOTATION_DJANGO_VIEW_KWARGS, json.dumps(view_kwargs))
         except Exception:
             logging.root.exception('ZipkinMiddleware.process_view failed')
 

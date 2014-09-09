@@ -1,5 +1,6 @@
 from unittest2.case import TestCase
 from mock import Mock, call
+from mock import patch
 
 import logging
 import types
@@ -9,6 +10,7 @@ from django.http import HttpResponse
 
 from helpers import DjangoZipkinTestHelpers
 
+import django_zipkin.middleware
 from django_zipkin.api import ZipkinApi
 from django_zipkin.zipkin_data import ZipkinData, ZipkinId
 from django_zipkin.data_store import BaseDataStore
@@ -28,6 +30,21 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.api = Mock(spec=ZipkinApi)
         self.middleware = ZipkinMiddleware(self.store, self.request_processor, self.generator, self.api)
         self.request_factory = RequestFactory()
+
+    def test_resolve_request_on_django_lt_15(self):
+        with patch('django.VERSION', new=(1, 4)):
+            reload(django_zipkin.middleware)
+            with patch('django_zipkin.middleware.resolve') as mock_resolve:
+                self.assertEqual(django_zipkin.middleware.resolve_request(Mock()),
+                                 mock_resolve.return_value)
+        reload(django_zipkin.middleware)
+
+    def test_resolve_request_on_django_ge_15(self):
+        with patch('django.VERSION', new=(1, 5)):
+            reload(django_zipkin.middleware)
+            request = Mock()
+            self.assertEqual(django_zipkin.middleware.resolve_request(request), request.resolver_match)
+        reload(django_zipkin.middleware)
 
     def test_intercepts_incoming_trace_id(self):
         self.middleware.process_request(Mock())
@@ -54,22 +71,31 @@ class ZipkinMiddlewareTestCase(TestCase):
         self.api.record_key_value.assert_has_calls(call('http.statuscode', 42))
 
     def test_annotates_view_name_and_arguments_of_view_function(self):
-        request, view, args, kwargs = Mock(), Mock(spec=types.FunctionType), Mock(), Mock()
+        request, view, args, kwargs = Mock(), Mock(spec=types.FunctionType), (1, 2), {'kw': 'arg'}
         self.middleware.process_view(request, view, args, kwargs)
         self.api.record_key_value.assert_has_calls([
-            call('django.view.name', view.func_name),
-            call('django.view.args', str(args)),
-            call('django.view.kwargs', str(kwargs))
-        ])
+            call('django.view.kwargs', '{"kw": "arg"}'),
+            call('django.view.func_name', view.func_name),
+            call('django.view.args', '[1, 2]')
+        ], any_order=True)
 
     def test_annotates_view_name_and_arguments_of_view_method(self):
-        request, view, args, kwargs = Mock(), Mock(spec=types.MethodType, im_class=Mock(__name__=Mock())), Mock(), Mock()
+        request, view, args, kwargs = Mock(), Mock(spec=types.MethodType, im_class=Mock(__name__=Mock())), (3, 4), {'more': 'kwargs'}
         self.middleware.process_view(request, view, args, kwargs)
         self.api.record_key_value.assert_has_calls([
-            call('django.view.name', '%s.%s' % (view.im_class.__name__, view.im_func.func_name)),
-            call('django.view.args', str(args)),
-            call('django.view.kwargs', str(kwargs))
-        ])
+            call('django.view.class', view.im_class.__name__),
+            call('django.view.func_name', view.im_func.func_name),
+            call('django.view.args', '[3, 4]'),
+            call('django.view.kwargs', '{"more": "kwargs"}')
+        ], any_order=True)
+
+    def test_adds_tastypie_specific_annotation(self):
+        request, view, args, kwargs = Mock(), Mock(spec=types.FunctionType), (1, 2), {'resource_name': 'test-resource'}
+        self.middleware.process_view(request, view, args, kwargs)
+        self.api.record_key_value.assert_has_calls([
+            call('django.tastypie.resource_name', 'test-resource'),
+            call('django.view.kwargs', '{}')
+        ], any_order=True)
 
     def test_with_defaults(self):
         self.middleware = ZipkinMiddleware()
