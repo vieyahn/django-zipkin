@@ -1,4 +1,5 @@
-from constants import *
+from constants import  DEFAULT_ZIPKIN_SERVICE_NAME, DEFAULT_ZIPKIN_DATA_STORE_CLASS,\
+    DEFAULT_ZIPKIN_LOGGER_NAME, DEFAULT_ZIPKIN_ID_GENERATOR_CLASS
 try:
     from configglue.schema import Section, StringOption
     has_configglue = True

@@ -17,10 +17,10 @@ if django.VERSION[0] == 1 and django.VERSION[1] < 5:
     def resolve_request(request):
         return resolve(request.path_info)
 elif django.VERSION[0] == 1 and django.VERSION[1] >= 5:
-    def resolve_request(request):
+    def resolve_request(request):  # pyflakes:ignore
         return request.resolver_match
 else:
-    def resolve_request(request):
+    def resolve_request(request):  # pyflakes:ignore
         return None
 
 
