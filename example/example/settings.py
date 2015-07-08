@@ -106,6 +106,10 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
         'zipkin_log': {
             'level': 'DEBUG',
             'class': 'example.scribelogger.ScribeLogHandler',
@@ -115,6 +119,11 @@ LOGGING = {
         },
     },
     'loggers': {
+        '': {
+            'level': 'DEBUG',
+            'handlers': ['console'],
+            'propagate': False,
+        },
         'zipkin': {
             'level': 'DEBUG',
             'handlers': ['zipkin_log'],
