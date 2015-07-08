@@ -110,7 +110,8 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'example.scribelogger.ScribeLogHandler',
             'host': os.getenv('ZIPKIN_SCRIBE_HOST', 'scribehost'),
-            'port': int(os.getenv('ZIPKIN_SCRIBE_PORT', '1463'))
+            'port': int(os.getenv('ZIPKIN_SCRIBE_PORT', '1463')),
+            'category': 'zipkin',
         },
     },
     'loggers': {
