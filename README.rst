@@ -21,7 +21,7 @@ Supported versions
 **Python**: ``2.6``, ``2.7`` (the current Python Thrift release doesn't
 support Python 3)
 
-**Django**: ``1.3`` - ``1.7``
+**Django**: ``1.3`` - ``1.8``
 
 
 Getting started (demo)

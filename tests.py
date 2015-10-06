@@ -20,9 +20,9 @@ def run_tests():
     if hasattr(django, 'setup'):
         django.setup()
 
-    from django.test.simple import DjangoTestSuiteRunner
+    from django.test.utils import get_runner
 
-    test_runner = DjangoTestSuiteRunner(verbosity=1)
+    test_runner = get_runner(settings)()
     return test_runner.run_tests(['django_zipkin'])
 
 
