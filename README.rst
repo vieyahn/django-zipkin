@@ -3,6 +3,8 @@ django-zipkin
 
 |Build Status|
 
+**This project is unmaintained. We encourage you to peruse the https://zipkin.io/pages/existing_instrumentations.html for supported implementations.**
+
 *django-zipkin* is a middleware and api for recording and sending
 messages to `Zipkin <http://twitter.github.io/zipkin/>`_. Why use it?
 From the http://twitter.github.io/zipkin/:
